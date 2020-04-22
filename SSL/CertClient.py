@@ -1,3 +1,4 @@
+import os
 import ssl
 import socket
 from Interface.ProtocolClientInterface import ProtocolClientInterface
@@ -22,8 +23,10 @@ class CertClient(ProtocolClientInterface):
         """
         Create the SSL context for the SSL connection to be made
         """
+        print("CLIENT: Creating SSL Context")
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.load_cert_chain('./util/client_certificate.pem', './util/client_key.pem')
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        context.load_cert_chain(dir_path + '/util/client_certificate.pem', dir_path + '/util/client_key.pem')
         context.check_hostname = False
         # Need to set this flag since we are using a self-signed certificate
         context.verify_mode = ssl.CERT_NONE
@@ -36,9 +39,11 @@ class CertClient(ProtocolClientInterface):
         Function used to connect to a server that is listening on the given hostname and port
         :return:
         """
+        print("CLIENT: Connecting to server...")
         s = socket.create_connection((self.hostname, self.port))
         # Third flag is for do_handshake on connect, maybe toy around with this for just handshake?
         self.ssock = self.context.wrap_socket(s, server_hostname='localhost')
+        print("CLIENT: Connected to server.")
 
     def receive_file(self, message_size=16*1024):
         """
@@ -46,6 +51,7 @@ class CertClient(ProtocolClientInterface):
         :param message_size:
         :return:
         """
+        print('CLIENT: Beginning to receive.')
         total_data = []
         data = self.ssock.recv(message_size)
         while data != bytes(''.encode()):
@@ -53,4 +59,4 @@ class CertClient(ProtocolClientInterface):
             data = self.ssock.recv(message_size)
 
         print('CLIENT: Done receiving file')
-        print('CLIENT: File received (truncated):', total_data[:40])
+        # print('CLIENT: File received (truncated):', total_data[:40])
