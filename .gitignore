@@ -1,2 +1,3 @@
-conf/*
-.idea/*
+conf/
+.idea/
+.vscode/
