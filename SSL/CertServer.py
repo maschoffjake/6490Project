@@ -1,3 +1,4 @@
+import os
 import ssl
 import socket
 from Interface.ProtocolServerInterface import ProtocolServerInterface
@@ -18,7 +19,8 @@ class CertServer(ProtocolServerInterface):
         """
         # Load certificates from 'default CA'
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.load_cert_chain('./util/server_certificate.pem', './util/server_key.pem')
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        context.load_cert_chain(dir_path + '/util/server_certificate.pem', dir_path + '/util/server_key.pem')
         # Recommended cipher taken from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
         # context.set_ciphers('TLS_AES_256_GCM_SHA384')
         # context.load_verify_locations(capath='./util/')
@@ -27,12 +29,12 @@ class CertServer(ProtocolServerInterface):
         s.bind((self.hostname, self.port))
         s.listen(5)
         ssock = context.wrap_socket(s, server_side=True)
-        print('SERVER: SSL server is listening on', self.hostname_str)
+        print('SERVER: SSL server is listening on', self.hostname, ':', self.port, '...')
 
         # Connection made
         (conn, address) = ssock.accept()
         self.connection = conn
-        print('SERVER: Connection made with server')
+        print('SERVER: Connection made with client')
 
     def send_file(self, path_to_file, message_size=16*1024):
         """
@@ -50,4 +52,4 @@ class CertServer(ProtocolServerInterface):
 
                 # Try to read in more data to send
                 data = f.read(message_size)
-        print('SERVER: Done sending file')
+        print('SERVER: Done sending file.')
