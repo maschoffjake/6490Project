@@ -1,2 +1,4 @@
-conf/*
-.idea/*
+conf/
+.idea/
+.vscode/
+__pycache__/
