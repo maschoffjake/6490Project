@@ -1,6 +1,9 @@
 import os
 import ssl
 import socket
+import logging
+import sys
+
 from Interface.ProtocolServerInterface import ProtocolServerInterface
 
 
@@ -10,6 +13,7 @@ class CertServer(ProtocolServerInterface):
         self.port = port
         self.protocol = protocol
         self.connection = None
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def start_server(self):
         """
@@ -29,12 +33,12 @@ class CertServer(ProtocolServerInterface):
         s.bind((self.hostname, self.port))
         s.listen(5)
         ssock = context.wrap_socket(s, server_side=True)
-        print('SERVER: SSL server is listening on', self.hostname, ':', self.port, '...')
+        logging.debug('SERVER: SSL server is listening on', self.hostname, ':', self.port, '...')
 
         # Connection made
         (conn, address) = ssock.accept()
         self.connection = conn
-        print('SERVER: Connection made with client')
+        logging.debug('SERVER: Connection made with client')
 
     def send_file(self, path_to_file, message_size=16*1024):
         """
@@ -43,7 +47,7 @@ class CertServer(ProtocolServerInterface):
         :param message_size:
         :return:
         """
-        print('SERVER: Beginning to send', path_to_file)
+        logging.debug('SERVER: Beginning to send', path_to_file)
         # Going to transfer the file passed in as arg (account for \r\n w/ newline)
         with open(path_to_file, 'r+b') as f:
             data = f.read(message_size)
@@ -52,4 +56,4 @@ class CertServer(ProtocolServerInterface):
 
                 # Try to read in more data to send
                 data = f.read(message_size)
-        print('SERVER: Done sending file.')
+        logging.debug('SERVER: Done sending file.')

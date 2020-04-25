@@ -1,6 +1,9 @@
 import os
 import ssl
 import socket
+import logging
+import sys
+
 from Interface.ProtocolClientInterface import ProtocolClientInterface
 
 
@@ -17,13 +20,14 @@ class CertClient(ProtocolClientInterface):
         self.protocol = protocol
         self.context = self.create_ssl_context()
         self.ssock = None
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     @staticmethod
     def create_ssl_context():
         """
         Create the SSL context for the SSL connection to be made
         """
-        print("CLIENT: Creating SSL Context")
+        logging.debug("CLIENT: Creating SSL Context")
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         context.load_cert_chain(dir_path + '/util/client_certificate.pem', dir_path + '/util/client_key.pem')
@@ -39,11 +43,11 @@ class CertClient(ProtocolClientInterface):
         Function used to connect to a server that is listening on the given hostname and port
         :return:
         """
-        print("CLIENT: Connecting to server...")
+        logging.debug("CLIENT: Connecting to server...")
         s = socket.create_connection((self.hostname, self.port))
         # Third flag is for do_handshake on connect, maybe toy around with this for just handshake?
         self.ssock = self.context.wrap_socket(s, server_hostname='localhost')
-        print("CLIENT: Connected to server.")
+        logging.debug("CLIENT: Connected to server.")
 
     def receive_file(self, message_size=16*1024):
         """
@@ -51,12 +55,12 @@ class CertClient(ProtocolClientInterface):
         :param message_size:
         :return:
         """
-        print('CLIENT: Beginning to receive.')
+        logging.debug('CLIENT: Beginning to receive.')
         total_data = []
         data = self.ssock.recv(message_size)
         while data != bytes(''.encode()):
             total_data.append(data)
             data = self.ssock.recv(message_size)
 
-        print('CLIENT: Done receiving file')
-        # print('CLIENT: File received (truncated):', total_data[:40])
+        logging.debug('CLIENT: Done receiving file')
+        # logging.debug('CLIENT: File received (truncated):', total_data[:40])
