@@ -2,6 +2,7 @@ import socket
 import logging
 import sys
 from diffiehellman.diffiehellman import DiffieHellman
+from Interface.ProtocolServerInterface import ProtocolServerInterface
 
 BUFFER_SIZE = 4096
 
@@ -13,7 +14,7 @@ def int_to_bytes(data, size):
     return int.to_bytes(data, size, byteorder=sys.byteorder)
 
 
-class DiffieServer():
+class DiffieServer(ProtocolServerInterface):
     def __init__(self, host, port):
         self.hostname = host
         self.port = port
@@ -82,10 +83,3 @@ class DiffieServer():
                 break
             else:
                 return data
-
-
-if __name__ == "__main__":
-    server = DiffieServer("127.0.0.1", 5001)
-    server.start_server()
-    data = server.waiting_for_response()
-    print(bytes_to_int(data))
