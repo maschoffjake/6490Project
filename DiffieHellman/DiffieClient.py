@@ -40,10 +40,10 @@ class DiffieClient(ProtocolClientInterface):
         """
         logging.debug('CLIENT: Beginning to receive.')
         total_data = []
-        data = self.ssock.recv(message_size)
+        data = self.socket.recv(message_size)
         while data != bytes(''.encode()):
             total_data.append(data)
-            data = self.ssock.recv(message_size)
+            data = self.socket.recv(message_size)
 
         logging.debug('CLIENT: Done receiving file')
 
