@@ -4,7 +4,7 @@ import logging
 from diffiehellman.diffiehellman import DiffieHellman
 from Interface.ProtocolClientInterface import ProtocolClientInterface
 
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 2048
 
 def bytes_to_int(data):
     return int.from_bytes(data, byteorder=sys.byteorder)
@@ -21,6 +21,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         self.public_key = None
         self.secret_key = None
         self.socket = None
+        self.data = None
 
     def connect(self):
         """
@@ -28,6 +29,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         :return:
         """
         print("CLIENT: Connecting to server...")
+        self.create_public_key()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.hostname, self.port))
         print("CLIENT: Connected to server...")
@@ -49,18 +51,20 @@ class EKEDiffieClient(ProtocolClientInterface):
         logging.debug('CLIENT: Done receiving file')
 
     def send_public_key(self):
-        self.diffie.generate_public_key()
-        print("CLIENT: public key --- ", self.diffie.public_key)
-        self.socket.sendall(int_to_bytes(self.diffie.public_key, BUFFER_SIZE))
+        if self.public_key is None:
+            self.create_public_key()
+        self.socket.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
 
     def create_public_key(self):
-        self.public_key = self.diffie.generate_public_key()
+        self.diffie.generate_public_key()
+        self.public_key = self.diffie.public_key
 
     def receive_public_key(self):
         # data = bytes_to_int(self.waiting_for_response())
         data = bytes_to_int(self.waiting_for_response())
-        print("CLIENT:", data)
-        self.secret_key = self.diffie.generate_shared_secret(data)
+        self.data = data
+        self.diffie.generate_shared_secret(data)
+        self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
             print("CLIENT: secret key was not established")
         else:

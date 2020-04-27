@@ -4,7 +4,7 @@ import sys
 from diffiehellman.diffiehellman import DiffieHellman
 from Interface.ProtocolServerInterface import ProtocolServerInterface
 
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 2048
 
 
 def bytes_to_int(data):
@@ -31,6 +31,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         Once a connection is made, it creates a new thread and passes it off to a new function (handle_sls)
         :return:
         """
+        self.create_public_key()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         s.bind((self.hostname, self.port))
         s.listen(5)
@@ -63,20 +64,20 @@ class EKEDiffieServer(ProtocolServerInterface):
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
-        print("SERVER: public key --- ", self.diffie.public_key)
-        self.connection.sendall(int_to_bytes(self.diffie.public_key, 1024))
+        self.connection.sendall(int_to_bytes(self.diffie.public_key, BUFFER_SIZE))
 
 
     def create_public_key(self):
-        self.public_key = self.diffie.generate_public_key()
+        self.diffie.generate_public_key()
+        self.public_key = self.diffie.public_key
     
 
     def receive_public_key(self):
         data = bytes_to_int(self.waiting_for_response())
-        print("Server:", data)
         if self.public_key is None:
             self.create_public_key()
-        self.secret_key = self.diffie.generate_shared_secret(data)
+        self.diffie.generate_shared_secret(data)
+        self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
             print("SERVER: secret key was not established")
         else:
