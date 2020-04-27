@@ -13,7 +13,7 @@ def int_to_bytes(data, size):
     return int.to_bytes(data, size, byteorder=sys.byteorder)
 
 class DiffieClient(ProtocolClientInterface):
-    def __init__(self, port, host):
+    def __init__(self, host, port):
         self.hostname = host
         self.port = port
         self.diffie = DiffieHellman()
@@ -49,14 +49,21 @@ class DiffieClient(ProtocolClientInterface):
 
     def send_public_key(self):
         self.diffie.generate_public_key()
-        self.socket.sendall(int_to_bytes(self.diffie.public_key, 1024))
+        print("CLIENT: public key --- ", self.diffie.public_key)
+        self.socket.sendall(int_to_bytes(self.diffie.public_key, BUFFER_SIZE))
 
     def create_public_key(self):
         self.public_key = self.diffie.generate_public_key()
 
     def receive_public_key(self):
-        data = self.waiting_for_response()
-        self.secret_key = self.diffie.generate_public_key(data)
+        # data = bytes_to_int(self.waiting_for_response())
+        data = bytes_to_int(self.waiting_for_response())
+        print("CLIENT:", data)
+        self.secret_key = self.diffie.generate_shared_secret(data)
+        if self.secret_key == None:
+            print("CLIENT: secret key was not established")
+        else:
+            print("CLIENT: secret key was established")
 
 
     def waiting_for_response(self):

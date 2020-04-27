@@ -62,6 +62,7 @@ class DiffieServer(ProtocolServerInterface):
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
+        print("SERVER: public key --- ", self.diffie.public_key)
         self.connection.sendall(int_to_bytes(self.diffie.public_key, 1024))
 
 
@@ -70,10 +71,15 @@ class DiffieServer(ProtocolServerInterface):
     
 
     def receive_public_key(self):
-        data = self.waiting_for_response()
+        data = bytes_to_int(self.waiting_for_response())
+        print("Server:", data)
         if self.public_key is None:
             self.create_public_key()
         self.secret_key = self.diffie.generate_shared_secret(data)
+        if self.secret_key == None:
+            print("SERVER: secret key was not established")
+        else:
+            print("SERVER: secret key was established")
 
 
     def waiting_for_response(self):
