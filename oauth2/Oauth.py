@@ -47,7 +47,7 @@ class Oauth2(ProtocolClientInterface):
             './conf/credentials.json', self.SCOPES)
 
         creds = flow.run_local_server(port=0)
-        self.pp.pprint(vars(creds))
+        # self.pp.pprint(vars(creds))
 
         # Need to grab the data from this object returned...
         creds_data = vars(creds)
@@ -70,7 +70,6 @@ class Oauth2(ProtocolClientInterface):
         self.creds = None
 
         r = requests.post(self.authorization_url, data=self.context)
-
         if r.ok:
             self.access_token = r.json()['access_token']
             self.creds = Credentials(self.access_token, client_id=self.context['client_id'], client_secret=self.context['client_secret'], scopes=self.SCOPES)
@@ -85,3 +84,9 @@ class Oauth2(ProtocolClientInterface):
         """
         drive = build('drive', 'v3', credentials=self.creds)
         file_to_download = drive.files().get_media(fileId=self.file_id).execute()
+
+    def get_creds(self):
+        '''
+            Used for threading to grab credentials created from connecting
+        '''
+        return self.creds
