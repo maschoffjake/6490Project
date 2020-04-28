@@ -21,7 +21,9 @@ ENERGY_USED = {
     'server_send_dram': []
 }
 
-number_of_test_iterations = 1
+number_of_power_test_iterations = 500
+number_of_memory_test_iterations = 1
+number_of_cpu_test_iterations = 1
 
 def main():
     # You must first authenticate the client with a signin
@@ -47,7 +49,7 @@ def run_power_tests(client):
             print("Measuring PKG...")
         else:
             print("Measuring DRAM...")
-        for i in range(number_of_test_iterations):
+        for i in range(number_of_power_test_iterations):
             # Start the client
             pyRAPL.setup(devices=[device])
             meter_client_connect = pyRAPL.Measurement('client_connect')
@@ -79,7 +81,7 @@ def run_memory_tests(client):
     '''
     total_peak_memory_connect = 0
     total_peak_memory_receive_file = 0
-    for i in range(number_of_test_iterations):
+    for i in range(number_of_memory_test_iterations):
 
         # Measure connection memory
         tracemalloc.start()
@@ -93,9 +95,11 @@ def run_memory_tests(client):
         _, peak = tracemalloc.get_traced_memory()
         total_peak_memory_receive_file += peak
 
-    # Compute average
-    print("Average memory consumption over", number_of_test_iterations, "tests for connecting:", total_peak_memory_connect/number_of_test_iterations)
-    print("Average memory consumption over", number_of_test_iterations, "tests for receiving file:", total_peak_memory_receive_file/number_of_test_iterations)
+    # Compute average in MB 
+    average_connection_memory_MB = (total_peak_memory_connect/number_of_memory_test_iterations) / 10**6
+    average_receive_memory_MB = (total_peak_memory_receive_file/number_of_memory_test_iterations) / 10**6
+    print("Average memory consumption over", number_of_memory_test_iterations, "tests for connecting:", "%.4f" % average_connection_memory_MB, "MB")
+    print("Average memory consumption over", number_of_memory_test_iterations, "tests for receiving file:", "%.4f" % average_receive_memory_MB, "MB")
 
 
 def run_cpu_utilization_tests(client):
