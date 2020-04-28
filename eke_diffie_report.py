@@ -1,5 +1,7 @@
 import threading
 from time import sleep
+import struct
+import os
 from Crypto.Random import get_random_bytes
 from EKE.DHClient import EKEDiffieClient
 from EKE.DHServer import EKEDiffieServer
@@ -42,14 +44,10 @@ def run_server(server):
 
     print("SERVER: Sending public key")
     server.send_public_key()
-    
-    # Deletes encrypted file if present
-    server.file_check('./SSL/util/frankenstein_book.txt.enc')
 
-    server.encrypt_file(server.secret_key, './SSL/util/frankenstein_book.txt')
-    server.send_file('./SSL/util/frankenstein_book.txt.enc')
+    server.send_file('./SSL/util/frankenstein_book.txt')
     return
-
 
 if __name__ == "__main__":
     main()
+
