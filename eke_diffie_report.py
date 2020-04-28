@@ -26,6 +26,8 @@ def main():
     print("CLIENT: Waiting for public key")
     client.receive_public_key()
 
+    client.receive_file()
+
 
     print(client.secret_key)
     print(server.secret_key)
@@ -40,6 +42,12 @@ def run_server(server):
 
     print("SERVER: Sending public key")
     server.send_public_key()
+    
+    # Deletes encrypted file if present
+    server.file_check('./SSL/util/frankenstein_book.txt.enc')
+
+    server.encrypt_file(server.secret_key, './SSL/util/frankenstein_book.txt')
+    server.send_file('./SSL/util/frankenstein_book.txt.enc')
     return
 
 

@@ -45,7 +45,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         print("CLIENT: Connected to server...")
         return
 
-    def receive_file(self, message_size: int):
+    def receive_file(self, message_size=16*1024):
         """
         Function used for receiving a file from the connection made, defaults to 16KB sized messages
         :param message_size:
