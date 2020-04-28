@@ -34,6 +34,7 @@ def main():
     # Run power tests, memory tests, and then CPU tests
     # run_power_tests(client=client)
     # run_memory_tests(client=client)
+    client.connect()    # Run a connect before to ensure creds is populated
     run_cpu_utilization_tests(client=client)
 
 
@@ -110,6 +111,7 @@ def run_cpu_utilization_tests(client):
         Measuring both connection (using refresh tokens) and
         downloading a file from google drive
     '''
+    print(client.get_creds())
     cpu_percents_connect = []
     cpu_percents_receive_file = []
     for i in range(number_of_cpu_test_iterations):
@@ -121,7 +123,10 @@ def run_cpu_utilization_tests(client):
 
         # Log CPU usage every 10ms
         while worker_process.is_alive():
-            cpu_percents_connect.append(p.cpu_percent())
+            try:
+                cpu_percents_connect.append(p.cpu_percent())
+            except Exception as e:
+                print(str(e))
             time.sleep(0.01)
 
         worker_process.join()
@@ -133,16 +138,19 @@ def run_cpu_utilization_tests(client):
 
         # Log CPU usage every 10ms
         while worker_process.is_alive():
-            cpu_percents_connect.append(p.cpu_percent())
+            try:
+                cpu_percents_receive_file.append(p.cpu_percent())
+            except Exception as e:
+                print(str(e))
             time.sleep(0.01)
 
         worker_process.join()
 
-    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % np.average(cpu_percents_connect))
-    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for receiving file:", "%.4f" % np.average(cpu_percents_receive_file))
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % (np.average(cpu_percents_connect)/psutil.cpu_count()))
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for receiving file:", "%.4f" % (np.average(cpu_percents_receive_file)/psutil.cpu_count()))
     print()
-    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % max(cpu_percents_connect))
-    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % max(cpu_percents_receive_file))
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % (max(cpu_percents_connect)/psutil.cpu_count()))
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for receiving file:", "%.4f" % (max(cpu_percents_receive_file)/psutil.cpu_count()))
 
 
 def run_connect(client):
