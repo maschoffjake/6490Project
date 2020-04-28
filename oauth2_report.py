@@ -23,9 +23,6 @@ def main():
     # You must first authenticate the client with a signin
     client = Oauth2()
 
-    
-    client.connect()
-
     # Power measurement, and number of times to repeat
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM]
     repeat = 500
@@ -71,29 +68,6 @@ def print_energy_used():
     print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
     print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
     print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
-
-
-def run_server(device):
-    # Start the server
-    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
-    pyRAPL.setup(devices=[device])
-    meter_server_connect = pyRAPL.Measurement('server_connect')
-    meter_server_connect.begin()
-    server.start_server()
-    meter_server_connect.end()
-
-    # Send file
-    meter_server_send = pyRAPL.Measurement('server_send')
-    meter_server_send.begin()
-    server.send_file('./SSL/util/frankenstein_book.txt')
-    meter_server_send.end()
-
-    if device == pyRAPL.Device.PKG:
-        ENERGY_USED['server_connect_pkg'] += meter_server_connect.result.pkg
-        ENERGY_USED['server_send_pkg'] += meter_server_send.result.pkg
-    else:
-        ENERGY_USED['server_connect_dram'] += meter_server_connect.result.dram
-        ENERGY_USED['server_send_dram'] += meter_server_send.result.dram
 
 
 if __name__ == "__main__":

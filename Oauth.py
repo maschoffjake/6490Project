@@ -2,7 +2,6 @@ import sys
 import pprint
 import requests
 import json
-import io
 
 # Used for OAuth2
 from googleapiclient.discovery import build
@@ -23,7 +22,6 @@ class Oauth2(ProtocolClientInterface):
         self.context = self.create_oauth2_context(self)
         self.access_token = None
         self.creds = None
-        self.file_id = '1eSCYzC39ida5vwpH5lZuEYwNgBfsbPTs'      # File ID on my Drive for frankenstein_book.txt
         self.authorization_url = "https://www.googleapis.com/oauth2/v4/token"
 
     @staticmethod
@@ -86,10 +84,8 @@ class Oauth2(ProtocolClientInterface):
         :return:
         """
         drive = build('drive', 'v3', credentials=self.creds)
-        file = drive.files().get({
-            "fileId": self.file_id
-        })
-        self.pp.pprint(file)
+        files = drive.files().list().execute()
+        self.pp.pprint(files)
 
 
 def main():
