@@ -15,8 +15,10 @@ BUFFER_SIZE = 4096
 def bytes_to_int(data):
     return int.from_bytes(data, byteorder=sys.byteorder)
 
+
 def int_to_bytes(data, size):
     return int.to_bytes(data, size, byteorder=sys.byteorder)
+
 
 def file_check(file):
     if os.path.exists(file):
@@ -33,7 +35,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         self.encrypted_key = None
         self.secret_key = None
         self.connection = None
-
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def start_server(self):
         """
@@ -43,6 +45,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         """
         self.create_public_key()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((self.hostname, self.port))
         s.listen(5)
 
@@ -50,9 +53,9 @@ class EKEDiffieServer(ProtocolServerInterface):
         (conn, address) = s.accept()
         self.connection = conn
 
-        print('SERVER: Connection made with client')
+        logging.debug('SERVER: Connection made with client')
 
-    def send_file(self, path_to_file, message_size=16*1024):
+    def send_file(self, path_to_file, message_size=16 * 1024):
         """
         Function used for sending a file with the connection that has been made. Defaults to message sizes of 16KB
         :param path_to_file:
@@ -60,7 +63,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         :return:
         """
         logging.debug('SERVER: Beginning to send', path_to_file)
-        print("SERVER: sending file")
+        logging.debug("SERVER: sending file")
         # Going to transfer the file passed in as arg (account for \r\n w/ newline)
         with open(path_to_file, 'r+b') as f:
             data = f.read(message_size)
@@ -71,17 +74,14 @@ class EKEDiffieServer(ProtocolServerInterface):
                 data = f.read(message_size)
         logging.debug('SERVER: Done sending file.')
 
-
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
         self.connection.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
 
-
     def create_public_key(self):
         self.diffie.generate_public_key()
         self.public_key = self.diffie.public_key
-    
 
     def receive_public_key(self):
         data = self.waiting_for_response()
@@ -89,22 +89,21 @@ class EKEDiffieServer(ProtocolServerInterface):
         data = data.lstrip("0")
         msg = json.loads(data)
 
-        cipher = DES3.new(self.passwords[msg["Name"]], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(self.passwords[msg["Name"]], DES3.MODE_ECB)
         encrypted = int_to_bytes(msg["Key"], BUFFER_SIZE)
         decrypted = bytes_to_int(cipher.decrypt(encrypted))
         if self.public_key is None:
             self.create_public_key()
-        self.diffie.generate_shared_secret(decrypted)    
+        self.diffie.generate_shared_secret(decrypted)
         self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
-            print("SERVER: secret key was not established")
+            logging.debug("SERVER: secret key was not established")
         else:
-            print("SERVER: secret key was established")
-
+            logging.debug("SERVER: secret key was established")
 
     def waiting_for_response(self):
         while True:
-            data = self.connection.recv(BUFFER_SIZE*10)
+            data = self.connection.recv(BUFFER_SIZE * 10)
             if not data:
                 break
             else:

@@ -22,6 +22,7 @@ ENERGY_USED = {
 HOST = '127.0.0.1'
 PORT = 5002
 
+
 def main():
     host = "localhost"
     port = 5002
@@ -35,7 +36,7 @@ def main():
         else:
             print("Measuring DRAM...")
         for i in range(repeat):
-            th = threading.Thread(target=run_server, args=[device,password,])
+            th = threading.Thread(target=run_server, args=[device, password])
             th.start()
             sleep(0.05)
 
@@ -44,13 +45,13 @@ def main():
             pyRAPL.setup(devices=[device])
             meter_client_connect = pyRAPL.Measurement('client_connect')
             meter_client_connect.begin()
-            print("CLIENT: Connecting")
+            # print("CLIENT: Connecting")
             client.connect()
 
-            print("CLIENT: Sending public key")
+            # print("CLIENT: Sending public key")
             client.send_public_key()
 
-            print("CLIENT: Waiting for public key")
+            # print("CLIENT: Waiting for public key")
             client.receive_public_key()
             meter_client_connect.end()
 
@@ -88,20 +89,19 @@ def print_energy_used():
 
 
 def run_server(device, password):
-
-        # Start the server
+    # Start the server
     server = EKEDiffieServer(HOST, PORT)
     server.add_password("Alice", password)
     pyRAPL.setup(devices=[device])
     meter_server_connect = pyRAPL.Measurement('server_connect')
     meter_server_connect.begin()
-    print("SERVER: Starting server")
+    # print("SERVER: Starting server")
     server.start_server()
 
-    print("SERVER: Waiting for public key")
+    # print("SERVER: Waiting for public key")
     server.receive_public_key()
 
-    print("SERVER: Sending public key")
+    # print("SERVER: Sending public key")
     server.send_public_key()
     meter_server_connect.end()
 
@@ -117,9 +117,8 @@ def run_server(device, password):
     else:
         ENERGY_USED['server_connect_dram'] += meter_server_connect.result.dram
         ENERGY_USED['server_send_dram'] += meter_server_send.result.dram
-
-
     return
+
 
 if __name__ == "__main__":
     main()
