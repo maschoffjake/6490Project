@@ -1,6 +1,8 @@
 import socket
 import logging
 import sys
+import json
+from Crypto.Cipher import DES3
 from diffiehellman.diffiehellman import DiffieHellman
 from Interface.ProtocolServerInterface import ProtocolServerInterface
 
@@ -21,6 +23,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         self.diffie = DiffieHellman()
         self.passwords = {}
         self.public_key = None
+        self.encrypted_key = None
         self.secret_key = None
         self.connection = None
 
@@ -31,6 +34,7 @@ class EKEDiffieServer(ProtocolServerInterface):
         Once a connection is made, it creates a new thread and passes it off to a new function (handle_sls)
         :return:
         """
+        self.create_public_key()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         s.bind((self.hostname, self.port))
         s.listen(5)
@@ -63,20 +67,27 @@ class EKEDiffieServer(ProtocolServerInterface):
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
-        print("SERVER: public key --- ", self.diffie.public_key)
-        self.connection.sendall(int_to_bytes(self.diffie.public_key, 1024))
+        self.connection.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
 
 
     def create_public_key(self):
-        self.public_key = self.diffie.generate_public_key()
+        self.diffie.generate_public_key()
+        self.public_key = self.diffie.public_key
     
 
     def receive_public_key(self):
-        data = bytes_to_int(self.waiting_for_response())
-        print("Server:", data)
+        data = self.waiting_for_response()
+        data = data.decode()
+        data = data.lstrip("0")
+        msg = json.loads(data)
+
+        cipher = DES3.new(self.passwords[msg["Name"]], DES3.MODE_ECB, 'This is an IV')
+        encrypted = int_to_bytes(msg["Key"], BUFFER_SIZE)
+        decrypted = bytes_to_int(cipher.decrypt(encrypted))
         if self.public_key is None:
             self.create_public_key()
-        self.secret_key = self.diffie.generate_shared_secret(data)
+        self.diffie.generate_shared_secret(decrypted)    
+        self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
             print("SERVER: secret key was not established")
         else:
@@ -85,11 +96,11 @@ class EKEDiffieServer(ProtocolServerInterface):
 
     def waiting_for_response(self):
         while True:
-            data = self.connection.recv(BUFFER_SIZE)
+            data = self.connection.recv(BUFFER_SIZE*10)
             if not data:
                 break
             else:
                 return data
 
     def add_password(self, name, password):
-        self.password[name] = password
+        self.passwords[name] = password

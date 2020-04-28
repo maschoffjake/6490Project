@@ -1,6 +1,8 @@
 import socket
 import sys
 import logging
+import json
+from Crypto.Cipher import DES3
 from diffiehellman.diffiehellman import DiffieHellman
 from Interface.ProtocolClientInterface import ProtocolClientInterface
 
@@ -12,6 +14,13 @@ def bytes_to_int(data):
 def int_to_bytes(data, size):
     return int.to_bytes(data, size, byteorder=sys.byteorder)
 
+def create_json(data):
+    json_data = json.dumps(data)
+    json_data = json_data.zfill(len(json_data)+(8-(len(json_data) % 8)))
+    json_data = json_data.encode()
+    return json_data
+
+
 class EKEDiffieClient(ProtocolClientInterface):
     def __init__(self, host, port, password):
         self.hostname = host
@@ -19,8 +28,10 @@ class EKEDiffieClient(ProtocolClientInterface):
         self.diffie = DiffieHellman()
         self.password = password
         self.public_key = None
+        self.encrypted_key = None
         self.secret_key = None
         self.socket = None
+        self.data = None
 
     def connect(self):
         """
@@ -28,6 +39,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         :return:
         """
         print("CLIENT: Connecting to server...")
+        self.create_public_key()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.hostname, self.port))
         print("CLIENT: Connected to server...")
@@ -49,18 +61,30 @@ class EKEDiffieClient(ProtocolClientInterface):
         logging.debug('CLIENT: Done receiving file')
 
     def send_public_key(self):
-        self.diffie.generate_public_key()
-        print("CLIENT: public key --- ", self.diffie.public_key)
-        self.socket.sendall(int_to_bytes(self.diffie.public_key, BUFFER_SIZE))
+        if self.public_key is None:
+            self.create_public_key()
+        cipher = DES3.new(self.password, DES3.MODE_ECB, 'This is an IV')
+        encrypted = cipher.encrypt(int_to_bytes(self.public_key, BUFFER_SIZE))
+        #self.socket.sendall(encrypted)
+
+        msg = {
+            "Name": "Alice",
+            "Key": bytes_to_int(encrypted)
+        }
+        json_msg = create_json(msg)
+        self.socket.sendall(json_msg)
+        #self.socket.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
 
     def create_public_key(self):
-        self.public_key = self.diffie.generate_public_key()
+        self.diffie.generate_public_key()
+        self.public_key = self.diffie.public_key
 
     def receive_public_key(self):
         # data = bytes_to_int(self.waiting_for_response())
         data = bytes_to_int(self.waiting_for_response())
-        print("CLIENT:", data)
-        self.secret_key = self.diffie.generate_shared_secret(data)
+        self.data = data
+        self.diffie.generate_shared_secret(data)
+        self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
             print("CLIENT: secret key was not established")
         else:
