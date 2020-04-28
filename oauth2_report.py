@@ -27,33 +27,33 @@ def main():
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM]
     repeat = 500
     for device in devices_to_record:
-        if device == pyRAPL.Device.PKG:
-            print("Measuring PKG...")
-        else:
-            print("Measuring DRAM...")
+        # if device == pyRAPL.Device.PKG:
+        #     print("Measuring PKG...")
+        # else:
+        #     print("Measuring DRAM...")
         for i in range(repeat):
             # Start the client
-            pyRAPL.setup(devices=[device])
-            meter_client_connect = pyRAPL.Measurement('client_connect')
-            meter_client_connect.begin()
+            # pyRAPL.setup(devices=[device])
+            # meter_client_connect = pyRAPL.Measurement('client_connect')
+            # meter_client_connect.begin()
             client.connect()
-            meter_client_connect.end()
+            # meter_client_connect.end()
 
             # Now transfer a file across this connection
-            meter_client_receive = pyRAPL.Measurement('client_receive')
-            meter_client_receive.begin()
+            # meter_client_receive = pyRAPL.Measurement('client_receive')
+            # meter_client_receive.begin()
             client.receive_file()
-            meter_client_receive.end()
+            # meter_client_receive.end()
 
-            if device == pyRAPL.Device.PKG:
-                ENERGY_USED['client_connect_pkg'] += meter_client_connect.result.pkg
-                ENERGY_USED['client_receive_pkg'] += meter_client_receive.result.pkg
-            else:
-                ENERGY_USED['client_connect_dram'] += meter_client_connect.result.dram
-                ENERGY_USED['client_receive_dram'] += meter_client_receive.result.dram
+            # if device == pyRAPL.Device.PKG:
+            #     ENERGY_USED['client_connect_pkg'] += meter_client_connect.result.pkg
+            #     ENERGY_USED['client_receive_pkg'] += meter_client_receive.result.pkg
+            # else:
+            #     ENERGY_USED['client_connect_dram'] += meter_client_connect.result.dram
+            #     ENERGY_USED['client_receive_dram'] += meter_client_receive.result.dram
 
         print("Done.\n")
-    print_energy_used()
+    # print_energy_used()
 
 
 def print_energy_used():
