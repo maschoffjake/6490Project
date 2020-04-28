@@ -1,14 +1,16 @@
 import ssl
 import threading
-import pyRAPL
 import numpy as np
-from time import sleep
+import time
 
 # Oauth class
 from oauth2.Oauth import Oauth2
 
-# Memory library
+# Resource measurement libs
 import tracemalloc
+import pyRAPL
+import psutil
+import multiprocessing as mp
 
 ENERGY_USED = {
     'client_connect_pkg': [],
@@ -23,7 +25,7 @@ ENERGY_USED = {
 
 number_of_power_test_iterations = 500
 number_of_memory_test_iterations = 1
-number_of_cpu_test_iterations = 1
+number_of_cpu_test_iterations = 20
 
 def main():
     # You must first authenticate the client with a signin
@@ -31,8 +33,8 @@ def main():
 
     # Run power tests, memory tests, and then CPU tests
     # run_power_tests(client=client)
-    run_memory_tests(client=client)
-    # run_cpu_utilization_tests(client=client)
+    # run_memory_tests(client=client)
+    run_cpu_utilization_tests(client=client)
 
 
 
@@ -108,7 +110,52 @@ def run_cpu_utilization_tests(client):
         Measuring both connection (using refresh tokens) and
         downloading a file from google drive
     '''
-    pass
+    cpu_percents_connect = []
+    cpu_percents_receive_file = []
+    for i in range(number_of_cpu_test_iterations):
+
+        # Measure connect cpu %
+        worker_process = mp.Process(target=run_connect, args=(client,))
+        worker_process.start()
+        p = psutil.Process(worker_process.pid)
+
+        # Log CPU usage every 10ms
+        while worker_process.is_alive():
+            cpu_percents_connect.append(p.cpu_percent())
+            time.sleep(0.01)
+
+        worker_process.join()
+
+        # Measure connect cpu %
+        worker_process = mp.Process(target=run_receive_file, args=(client,))
+        worker_process.start()
+        p = psutil.Process(worker_process.pid)
+
+        # Log CPU usage every 10ms
+        while worker_process.is_alive():
+            cpu_percents_connect.append(p.cpu_percent())
+            time.sleep(0.01)
+
+        worker_process.join()
+
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % np.average(cpu_percents_connect))
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests for receiving file:", "%.4f" % np.average(cpu_percents_receive_file))
+    print()
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % max(cpu_percents_connect))
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests for connecting:", "%.4f" % max(cpu_percents_receive_file))
+
+
+def run_connect(client):
+    '''
+        Threaded function for recording the CPU usage for connecting for the client
+    '''
+    client.connect()
+
+def run_receive_file(client):
+    '''
+        Threaded function for recording the CPU usage for receiving a file from the client
+    '''
+    client.receive_file()
 
 def print_energy_used():
     print("CPU Energy Uses")
