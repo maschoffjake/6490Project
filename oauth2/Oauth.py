@@ -70,7 +70,6 @@ class Oauth2(ProtocolClientInterface):
         self.creds = None
 
         r = requests.post(self.authorization_url, data=self.context)
-        print(r.json())
 
         if r.ok:
             self.access_token = r.json()['access_token']
@@ -84,7 +83,5 @@ class Oauth2(ProtocolClientInterface):
         Function used for receiving a file from the connection made, downloads a file from google drive
         :return:
         """
-        print('entering receive')
         drive = build('drive', 'v3', credentials=self.creds)
         file_to_download = drive.files().get_media(fileId=self.file_id).execute()
-        print(file_to_download)
