@@ -22,6 +22,7 @@ ENERGY_USED = {
 HOST = '127.0.0.1'
 PORT = 5002
 
+
 def main():
     host = "localhost"
     port = 5002
@@ -35,7 +36,7 @@ def main():
         else:
             print("Measuring DRAM...")
         for i in range(repeat):
-            th = threading.Thread(target=run_server, args=[device,password,])
+            th = threading.Thread(target=run_server, args=[device, password, ])
             th.start()
             sleep(0.05)
 
@@ -88,8 +89,7 @@ def print_energy_used():
 
 
 def run_server(device, password):
-
-        # Start the server
+    # Start the server
     server = EKEAugmentedServer(HOST, PORT)
     server.add_password("Alice", password)
     pyRAPL.setup(devices=[device])
@@ -118,9 +118,8 @@ def run_server(device, password):
         ENERGY_USED['server_connect_dram'] += meter_server_connect.result.dram
         ENERGY_USED['server_send_dram'] += meter_server_send.result.dram
 
-
     return
+
 
 if __name__ == "__main__":
     main()
-
