@@ -1,5 +1,6 @@
 import threading
 from time import sleep
+from Crypto.Random import get_random_bytes
 from EKE.DHClient import EKEDiffieClient
 from EKE.DHServer import EKEDiffieServer
 
@@ -8,9 +9,11 @@ received = 1
 def main():
     host = "localhost"
     port = 5002
+    password = get_random_bytes(16)
 
     server = EKEDiffieServer(host, port)
-    client = EKEDiffieClient(host, port, "password")
+    server.add_password("Alice", password)
+    client = EKEDiffieClient(host, port, password)
     th = threading.Thread(target=run_server, args=[server,])
     th.start()
     sleep(0.05)

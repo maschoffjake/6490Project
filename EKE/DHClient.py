@@ -1,16 +1,25 @@
 import socket
 import sys
 import logging
+import json
+from Crypto.Cipher import DES3
 from diffiehellman.diffiehellman import DiffieHellman
 from Interface.ProtocolClientInterface import ProtocolClientInterface
 
-BUFFER_SIZE = 2048
+BUFFER_SIZE = 4096
 
 def bytes_to_int(data):
     return int.from_bytes(data, byteorder=sys.byteorder)
 
 def int_to_bytes(data, size):
     return int.to_bytes(data, size, byteorder=sys.byteorder)
+
+def create_json(data):
+    json_data = json.dumps(data)
+    json_data = json_data.zfill(len(json_data)+(8-(len(json_data) % 8)))
+    json_data = json_data.encode()
+    return json_data
+
 
 class EKEDiffieClient(ProtocolClientInterface):
     def __init__(self, host, port, password):
@@ -19,6 +28,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         self.diffie = DiffieHellman()
         self.password = password
         self.public_key = None
+        self.encrypted_key = None
         self.secret_key = None
         self.socket = None
         self.data = None
@@ -53,7 +63,17 @@ class EKEDiffieClient(ProtocolClientInterface):
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
-        self.socket.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
+        cipher = DES3.new(self.password, DES3.MODE_ECB, 'This is an IV')
+        encrypted = cipher.encrypt(int_to_bytes(self.public_key, BUFFER_SIZE))
+        #self.socket.sendall(encrypted)
+
+        msg = {
+            "Name": "Alice",
+            "Key": bytes_to_int(encrypted)
+        }
+        json_msg = create_json(msg)
+        self.socket.sendall(json_msg)
+        #self.socket.sendall(int_to_bytes(self.public_key, BUFFER_SIZE))
 
     def create_public_key(self):
         self.diffie.generate_public_key()
