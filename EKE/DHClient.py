@@ -52,11 +52,13 @@ class EKEDiffieClient(ProtocolClientInterface):
         :return:
         """
         logging.debug('CLIENT: Beginning to receive.')
+        print("CLIENT: receiving file")
         total_data = []
         data = self.socket.recv(message_size)
         while data != bytes(''.encode()):
             total_data.append(data)
             data = self.socket.recv(message_size)
+        print("CLIENT: received file")
 
         logging.debug('CLIENT: Done receiving file')
 
