@@ -7,10 +7,10 @@ import psutil
 import pyRAPL
 import numpy as np
 import multiprocessing as mp
-
-from SSL.CertClient import CertClient
-from SSL.CertServer import CertServer
 from time import sleep
+
+from DiffHellman.DHclient import DHClient
+from DiffHellman.DHserver import DHServer
 
 HOST = '127.0.0.1'
 PORT = 5001
@@ -36,31 +36,30 @@ TIME = {
 number_of_memory_test_iterations = 1
 number_of_cpu_test_iterations = 100
 
-SSL_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
-SSL_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
+DH_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
+DH_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
 
 
 def main():
-    protocols = [ssl.PROTOCOL_SSLv23, 'TLS']
+    protocols = [DHClient.ANONYMOUS, DHClient.AUTHENTICATED, DHClient.STS]
     for protocol in protocols:
-        global SSL_PROTOCOL_CLIENT
-        global SSL_PROTOCOL_SERVER
+        global DH_PROTOCOL_CLIENT
+        global DH_PROTOCOL_SERVER
         if protocol == "TLS":
-            SSL_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
-            SSL_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
+            DH_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
+            DH_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
         else:
-            SSL_PROTOCOL_CLIENT = protocol
-            SSL_PROTOCOL_SERVER = protocol
-        print(SSL_PROTOCOL_SERVER)
+            DH_PROTOCOL_CLIENT = protocol
+            DH_PROTOCOL_SERVER = protocol
+        print(DH_PROTOCOL_SERVER)
         # run_memory_tests()
-        # run_cpu_utilization_tests()
-        power_time()
-        print()
+        run_cpu_utilization_tests()
+        # power_time()
 
 
 def power_time():
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
-    repeat = 100
+    repeat = 10
     for device in devices_to_record:
         if device == pyRAPL.Device.PKG:
             print("Measuring PKG...")
@@ -77,7 +76,7 @@ def power_time():
             sleep(0.05)
 
             # Start the client
-            client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
+            client = DHClient(HOST, PORT, DH_PROTOCOL_CLIENT)
 
             meter_client_connect = 0
             connect_start = 0
@@ -149,7 +148,7 @@ def print_energy_used():
 
 def run_server(device):
     # Start the server
-    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
+    server = DHServer(HOST, PORT, DH_PROTOCOL_SERVER)
 
     meter_server_connect = 0
     connect_start = 0
@@ -203,7 +202,7 @@ def run_memory_tests():
         downloading a file from google drive
     '''
     print("Running memory test...")
-    client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
+    client = DHClient(HOST, PORT, DH_PROTOCOL_CLIENT)
     total_peak_memory_connect = 0
     total_peak_memory_receive_file = 0
     for i in range(number_of_memory_test_iterations):
@@ -234,7 +233,7 @@ def run_memory_tests():
 
 
 def run_memory_tests_server():
-    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
+    server = DHServer(HOST, PORT, DH_PROTOCOL_SERVER)
     total_peak_memory_connect = 0
     total_peak_memory_receive_file = 0
     # Measure connection memory
@@ -293,7 +292,7 @@ def run_client_cpu_util():
     sleep(0.05)
 
     # Start the client
-    client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
+    client = DHClient(HOST, PORT, DH_PROTOCOL_CLIENT)
     client.connect()
     client.receive_file()
 
@@ -301,7 +300,7 @@ def run_client_cpu_util():
 
 
 def run_server_cpu_util():
-    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
+    server = DHServer(HOST, PORT, DH_PROTOCOL_SERVER)
     server.start_server()
     server.send_file('./SSL/util/frankenstein_book.txt')
 

@@ -33,17 +33,18 @@ class EKEAugmentedClient(ProtocolClientInterface):
         self.secret_key = None
         self.socket = None
         self.data = None
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def connect(self):
         """
         Function used to connect to a server that is listening on the given hostname and port
         :return:
         """
-        print("CLIENT: Connecting to server...")
+        logging.debug("CLIENT: Connecting to server...")
         self.create_public_key()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.hostname, self.port))
-        print("CLIENT: Connected to server...")
+        logging.debug("CLIENT: Connected to server...")
         return
 
     def receive_file(self, message_size=16*1024):
@@ -53,13 +54,13 @@ class EKEAugmentedClient(ProtocolClientInterface):
         :return:
         """
         logging.debug('CLIENT: Beginning to receive.')
-        print("CLIENT: receiving file")
+        logging.debug("CLIENT: receiving file")
         total_data = []
         data = self.socket.recv(message_size)
         while data != bytes(''.encode()):
             total_data.append(data)
             data = self.socket.recv(message_size)
-        print("CLIENT: received file")
+        logging.debug("CLIENT: received file")
 
         logging.debug('CLIENT: Done receiving file')
 
@@ -69,7 +70,7 @@ class EKEAugmentedClient(ProtocolClientInterface):
         m = hashlib.sha1()
         m.update(self.password)
         x = m.digest()
-        cipher = DES3.new(x[:16], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(x[:16], DES3.MODE_ECB)
         encrypted = cipher.encrypt(int_to_bytes(self.public_key, BUFFER_SIZE))
         #self.socket.sendall(encrypted)
 
@@ -89,13 +90,13 @@ class EKEAugmentedClient(ProtocolClientInterface):
         data = self.waiting_for_response()
         data = data.decode()
         data = data.lstrip("0")
-        print("CLIENT:", data)
+        logging.debug("CLIENT:", data)
         msg = json.loads(data)
 
         m = hashlib.sha1()
         m.update(self.password)
         x = m.digest()
-        cipher = DES3.new(x[:16], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(x[:16], DES3.MODE_ECB)
         encrypted = int_to_bytes(msg["Key"], BUFFER_SIZE)
         decrypted = bytes_to_int(cipher.decrypt(encrypted))
         if self.public_key is None:
@@ -103,9 +104,9 @@ class EKEAugmentedClient(ProtocolClientInterface):
         self.diffie.generate_shared_secret(decrypted)    
         self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
-            print("CLIENT: secret key was not established")
+            logging.debug("CLIENT: secret key was not established")
         else:
-            print("CLIENT: secret key was established")
+            logging.debug("CLIENT: secret key was established")
 
 
     def waiting_for_response(self):

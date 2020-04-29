@@ -5,6 +5,9 @@ import struct
 import os
 import pyRAPL
 import numpy as np
+import psutil
+import tracemalloc
+import multiprocessing as mp
 from Crypto.Random import get_random_bytes
 from EKE.DHClient import EKEDiffieClient
 from EKE.DHServer import EKEDiffieServer
@@ -30,13 +33,21 @@ TIME = {
 HOST = '127.0.0.1'
 PORT = 5002
 
+number_of_memory_test_iterations = 1
+number_of_cpu_test_iterations = 100
 
 def main():
+    password = get_random_bytes(16)
+    run_memory_tests(password)
+    #run_cpu_utilization_tests(password)
+    return
+
+
+def power_time(password):
     host = "localhost"
     port = 5002
-    password = get_random_bytes(16)
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
-    repeat = 500
+    repeat = 10
 
     for device in devices_to_record:
         if device == pyRAPL.Device.PKG:
@@ -113,16 +124,16 @@ def main():
 
 def print_energy_used():
     print("CPU Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']) / 1000, 'mJ')
     print()
     print("DRAM Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']) / 1000, 'mJ')
     print()
     print("Time")
     print("Client Connect: ", np.average(TIME['client_connect_time']), 'S')
@@ -185,6 +196,138 @@ def run_server(device, password):
         TIME['server_connect_time'] += [connect_end - connect_start]
         TIME['server_send_time'] += [send_end - send_start]
     return
+
+
+def run_cpu_utilization_tests(password):
+    '''
+        Run CPU tests to see how much CPU is utilized by Oauth2
+        Measuring both connection (using refresh tokens) and
+        downloading a file from google drive
+    '''
+    print("Running CPU Utilization test...")
+    cpu_percents = []
+    for i in range(number_of_cpu_test_iterations):
+
+        # Measure connect cpu %
+        worker_process = mp.Process(target=run_client_cpu_util, args=[password,])
+        worker_process.start()
+        p = psutil.Process(worker_process.pid)
+
+        # Log CPU usage every 10ms
+        while worker_process.is_alive():
+            try:
+                cpu_percents.append(p.cpu_percent())
+            except Exception as e:
+                print(str(e))
+            time.sleep(0.01)
+
+        worker_process.join()
+
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests between server and client connection:",
+          "%.4f" % (np.average(cpu_percents) / psutil.cpu_count()))
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests between server and client connection:",
+          "%.4f" % (max(cpu_percents) / psutil.cpu_count()))
+
+
+def run_memory_tests(password):
+    '''
+        Run memory tests to see how much memory is consumed by Oauth2
+        Measuring both connection (using refresh tokens) and
+        downloading a file from google drive
+    '''
+    print("Running memory test...")
+    # Start the client
+    client = EKEDiffieClient(HOST, PORT, password)
+    total_peak_memory_connect = 0
+    total_peak_memory_receive_file = 0
+    for i in range(number_of_memory_test_iterations):
+        th = threading.Thread(target=run_memory_tests_server)
+        th.start()
+        sleep(0.05)
+        # Measure connection memory
+        tracemalloc.start()
+                # print("CLIENT: Connecting")
+        client.connect()
+
+        # print("CLIENT: Sending public key")
+        client.send_public_key()
+
+        # print("CLIENT: Waiting for public key")
+        client.receive_public_key()
+        _, peak = tracemalloc.get_traced_memory()
+        total_peak_memory_connect += peak
+
+        # Measure connection memory
+        tracemalloc.start()
+        client.receive_file()
+        _, peak = tracemalloc.get_traced_memory()
+        total_peak_memory_receive_file += peak
+
+        th.join()
+
+    # Compute average in MB
+    average_connection_memory_MB = (total_peak_memory_connect / number_of_memory_test_iterations) / 10 ** 6
+    average_receive_memory_MB = (total_peak_memory_receive_file / number_of_memory_test_iterations) / 10 ** 6
+    print("[Client] Average memory consumption over", number_of_memory_test_iterations, "tests for connecting:",
+            "%.4f" % average_connection_memory_MB, "MB")
+    print("[Client] Average memory consumption over", number_of_memory_test_iterations, "tests for receiving file:",
+            "%.4f" % average_receive_memory_MB, "MB")
+
+def run_memory_tests_server():
+    server = EKEDiffieServer(HOST, PORT)
+    total_peak_memory_connect = 0
+    total_peak_memory_receive_file = 0
+    # Measure connection memory
+    tracemalloc.start()
+    server.start_server()
+
+    # print("SERVER: Waiting for public key")
+    server.receive_public_key()
+
+    # print("SERVER: Sending public key")
+    server.send_public_key()
+    _, peak = tracemalloc.get_traced_memory()
+    total_peak_memory_connect += peak
+
+    # Measure connection memory
+    tracemalloc.start()
+    server.send_file('./SSL/util/frankenstein_book.txt')
+    _, peak = tracemalloc.get_traced_memory()
+    total_peak_memory_receive_file += peak
+    average_connection_memory_MB = (total_peak_memory_connect / number_of_memory_test_iterations) / 10 ** 6
+    average_receive_memory_MB = (total_peak_memory_receive_file / number_of_memory_test_iterations) / 10 ** 6
+    print("[Server] Average memory consumption over", number_of_memory_test_iterations, "tests for connecting:",
+          "%.4f" % average_connection_memory_MB, "MB")
+    print("[Server] Average memory consumption over", number_of_memory_test_iterations, "tests for sending file:",
+          "%.4f" % average_receive_memory_MB, "MB")
+
+
+def run_client_cpu_util(password):
+    th = threading.Thread(target=run_server_cpu_util)
+    th.start()
+    sleep(0.05)
+
+    # Start the client
+    client = EKEDiffieClient(HOST, PORT, password)
+    # print("CLIENT: Connecting")
+    client.connect()
+
+    # print("CLIENT: Sending public key")
+    client.send_public_key()
+
+    # print("CLIENT: Waiting for public key")
+    client.receive_public_key()
+    
+    client.receive_file()
+
+    th.join()
+
+
+def run_server_cpu_util(password):
+    server = EKEDiffieServer(HOST, PORT)
+    server.add_password("Alice", password)
+    server.start_server()
+    server.send_file('./SSL/util/frankenstein_book.txt')
 
 
 if __name__ == "__main__":

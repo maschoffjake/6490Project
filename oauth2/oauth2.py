@@ -43,7 +43,7 @@ def main():
     # files_arr = files['files']
     # for item in files_arr:
     #     print(item['name'])
-    # pp.pprint(files)
+    pp.pprint(files)
     # Call the Gmail API
     # results = service.users().labels().list(userId='me').execute()
     # labels = results.get('labels', [])

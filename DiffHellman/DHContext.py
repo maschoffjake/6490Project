@@ -4,13 +4,9 @@ import hashlib
 
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-import datetime
 
 
 # Retrieve public key bytes from PEM file
@@ -27,6 +23,21 @@ def getPrivateKey(pem_file):
         key = load_pem_private_key(pem_data.read(), password=None, backend=default_backend())
 
     return key
+
+
+# Generate a pseudo CA signed key
+def ca_sign_key(pem_file, ca_pem_file):
+    pub_key = getPrivateKey(pem_file).public_key().public_bytes(encoding=serialization.Encoding.PEM,
+                                                                format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+    ca_private_key = getPrivateKey(ca_pem_file)
+
+    digital_sig = ca_private_key.sign(pub_key,
+                                      padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
+                                                  salt_length=padding.PSS.MAX_LENGTH),
+                                      hashes.SHA256())
+
+    return digital_sig
 
 
 # HASH CONTENT HELPER METHOD (EXPECTS INPUT TO BE BYTE OBJECT))
