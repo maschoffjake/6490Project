@@ -1,10 +1,14 @@
+import base64
 import os
-import ssl
 import socket
 import pyDH
+import sys
+import logging
 
 from Interface.ProtocolServerInterface import ProtocolServerInterface
-from DiffHellman.DHContext import getPublicKey, encryptContent, verifyContent, hashContent
+from DiffHellman.DHContext import getPublicKey, getPrivateKey, encryptContent, verifyContent, hashContent, ca_sign_key
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 
 class DHServer(ProtocolServerInterface):
@@ -13,11 +17,16 @@ class DHServer(ProtocolServerInterface):
     STS = 2                 # ASYMMETRIC KEY AUTHENTICATION
 
     def __init__(self, hostname, port, protocol):
+        dir_path = os.path.dirname(os.path.realpath(__file__)) + '/util/'
         self.hostname = hostname
         self.port = port
         self.protocol = protocol
         self.context = pyDH.DiffieHellman()
         self.connection = None
+        self.certificate = (base64.b64encode(ca_sign_key(dir_path + 'server_key.pem', dir_path + 'ca_priv_key.pem'))).decode("utf-8")
+        self.private_key = getPrivateKey(dir_path + 'server_key.pem')
+        self.station_pub_key = getPrivateKey(dir_path + 'client_key.pem').public_key() if protocol == DHServer.STS else None
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def start_server(self):
         """
@@ -36,10 +45,10 @@ class DHServer(ProtocolServerInterface):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.hostname, self.port))
         sock.listen(5)
-        print('SERVER: DH server is listening on', self.hostname, ':', self.port, '...')
+        logging.debug('SERVER: DH server is listening on', self.hostname, ':', self.port, '...')
         conn, addr = sock.accept()
         self.connection = self.handshake(conn)
-        print('SERVER: Connection made with client')
+        logging.debug('SERVER: Connection made with client')
 
     def send_file(self, path_to_file, message_size=16*1024):
         """
@@ -48,7 +57,7 @@ class DHServer(ProtocolServerInterface):
         :param message_size:
         :return:
         """
-        print('SERVER: Beginning to send', path_to_file)
+        logging.debug('SERVER: Beginning to send', path_to_file)
         conn, key = self.connection
 
         # Going to transfer the file passed in as arg (account for \r\n w/ newline)
@@ -59,8 +68,14 @@ class DHServer(ProtocolServerInterface):
         message_hash = hashContent(data)
         package = data + b',' + message_hash
         enc_message = encryptContent(package, key, iv)
+
+        while True:
+            data = conn.recv(4096)
+            if data == b'READY':
+                break
+
         conn.sendall(enc_message)
-        print('SERVER: Done sending file.')
+        logging.debug('SERVER: Done sending file.')
 
     # CONNECTION HELPER METHOD
     # RETURN TUPLE (SOCK, SESSION KEY)
@@ -68,12 +83,29 @@ class DHServer(ProtocolServerInterface):
         # RCV TA
         while True:
             data = sock.recv(4096)
-            # print(data)
-            if not data or b'\n' in data:
+            # logging.debug(data)
+            if b'\n\n' in data:
                 break
 
-        message = data.rsplit(b'\n')[0]
-        #print('SERVER: {}'.format(message.decode()))
+        message = data.rsplit(b'\n\n')[0]
+
+        if self.protocol == DHServer.STS:
+            try:
+                message, b64_hash = message.decode().split(',')
+                enc_hash = base64.b64decode(b64_hash.encode())
+                rcv_hash = self.private_key.decrypt(enc_hash,
+                                                   padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                                                                algorithm=hashes.SHA256(),
+                                                                label=None)).decode("utf-8")
+                r_hash = base64.b64decode(rcv_hash.encode())
+                message = message.encode()
+                if hashContent(message) != r_hash:
+                    raise Exception("Sent key and hash do not match.")
+            except Exception as e:
+                logging.debug('SERVER STS ERROR FROM CLIENT:\t{}'.format(e))
+                return
+
+        #logging.debug('SERVER: {}'.format(message.decode()))
         rcv_pub_key = int(message.decode(), base=10)
         # GENERATE TB
         dh_public_key = self.context.gen_public_key()
@@ -81,41 +113,38 @@ class DHServer(ProtocolServerInterface):
         # GENERATE SESSION KEY
         try:
             dh_shared_key = self.context.gen_shared_key(rcv_pub_key)
+            session_key = str(dh_shared_key).encode()[0:32]
         except Exception as e:
-            print('ERROR:\t{}'.format(e))
+            logging.debug('SERVER ERROR:\t{}'.format(e))
             return
 
         # SEND TA
-        message = str(dh_public_key) + '\n'
-        sock.send(message.encode())
+        #message = str(dh_public_key) + '\n\n'
+        #sock.send(message.encode())
 
         # IF ANONYMOUS DONE
         if self.protocol == DHServer.ANONYMOUS:
-            return sock, str(dh_shared_key).encode()[0:32]
+            # SEND AS IS
+            message = str(dh_public_key) + '\n\n'
+            sock.send(message.encode())
 
-        # RCV SESSION KEY FOR VERIFICATION
-        while True:
-            data = sock.recv(4096)
-            # print(data)
-            if not data:
-                break
-
-        try:
-            print("NOT IMPLEMENTED")
-            # dcpt_data = dhc.verifyContents()
-            # data = base64.b64decode(data.encode())
-            # dig_sig, hash_sig = data.split(',')
-            # CONVERT BACK TO BYTES, THEN DECODE FROM BASE64 CONVERSION
-            # bob_certificate_bytes = base64.b64decode(dig_sig.encode())
-            # hash_sig = base64.b64decode(hash_sig.encode())
-        except Exception as e:
-            print("SOMETHING WENT TERRIBLY WRONG: {}".format(e))
-            return None
-
-        # VERIFY SESSION KEY
-        if self.protocol == DHServer.AUTHENTICATED:
+        elif self.protocol == DHServer.AUTHENTICATED:
             # VERIFY WITH CERTIFICATE
-            return None
+            message = str(dh_public_key)
+            pub_key_bytes = self.private_key.public_key().public_bytes(encoding=serialization.Encoding.PEM,
+                                                          format=serialization.PublicFormat.SubjectPublicKeyInfo)
+            b64_pub_key = pub_key_bytes.decode("utf-8")
+            message += ',' + b64_pub_key + ',' + self.certificate + '\n\n'
+            sock.send(message.encode())
         else:
-            # VERIFY WITH ASYMMETRIC KEY
-            return None
+            message = str(dh_public_key)
+            m_hash = base64.b64encode(hashContent(message.encode()))
+            enc_hash = self.station_pub_key.encrypt(m_hash,
+                                                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                                                                 algorithm=hashes.SHA256(),
+                                                                 label=None))
+            b64_hash = (base64.b64encode(enc_hash)).decode("utf-8")
+            message += ',' + b64_hash + '\n\n'
+            sock.sendall(message.encode())
+
+        return sock, session_key
