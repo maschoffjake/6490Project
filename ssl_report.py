@@ -1,9 +1,12 @@
 import ssl
 import threading
 import time
+import tracemalloc
 
+import psutil
 import pyRAPL
 import numpy as np
+import multiprocessing as mp
 
 from SSL.CertClient import CertClient
 from SSL.CertServer import CertServer
@@ -30,12 +33,17 @@ TIME = {
     'server_send_time': []
 }
 
+number_of_memory_test_iterations = 10
+number_of_cpu_test_iterations = 100
+
 
 def main():
-    # Port and hostname that the SSL server will be running on
-    host = 'localhost'
-    port = 5001
+    run_memory_tests()
+    # run_cpu_utilization_tests()
+    # power_time()
 
+
+def power_time():
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
     repeat = 500
     for device in devices_to_record:
@@ -54,7 +62,7 @@ def main():
             sleep(0.05)
 
             # Start the client
-            client = CertClient(host, port, ssl.PROTOCOL_TLS_CLIENT)
+            client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
 
             meter_client_connect = 0
             connect_start = 0
@@ -96,7 +104,7 @@ def main():
                 ENERGY_USED['client_connect_dram'] += meter_client_connect.result.dram
                 ENERGY_USED['client_receive_dram'] += meter_client_receive.result.dram
             elif device == "time":
-                TIME['client_connect_time'] += [connect_end - connect_start]
+                TIME['client_connect_time'] += [connect_end - connecnt_start]
                 TIME['client_receive_time'] += [receive_end - receive_start]
 
             th.join()
@@ -171,6 +179,116 @@ def run_server(device):
         TIME['server_connect_time'] += [connect_end - connect_start]
         TIME['server_send_time'] += [send_end - send_start]
     return
+
+
+def run_memory_tests():
+    '''
+        Run memory tests to see how much memory is consumed by Oauth2
+        Measuring both connection (using refresh tokens) and
+        downloading a file from google drive
+    '''
+    print("Running memory test...")
+    client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
+    total_peak_memory_connect = 0
+    total_peak_memory_receive_file = 0
+    for i in range(number_of_memory_test_iterations):
+        th = threading.Thread(target=run_memory_tests_server)
+        th.start()
+        sleep(0.05)
+        # Measure connection memory
+        tracemalloc.start()
+        client.connect()
+        _, peak = tracemalloc.get_traced_memory()
+        total_peak_memory_connect += peak
+
+        # Measure connection memory
+        tracemalloc.start()
+        client.receive_file()
+        _, peak = tracemalloc.get_traced_memory()
+        total_peak_memory_receive_file += peak
+
+        th.join()
+
+    # Compute average in MB
+    average_connection_memory_MB = (total_peak_memory_connect / number_of_memory_test_iterations) / 10 ** 6
+    average_receive_memory_MB = (total_peak_memory_receive_file / number_of_memory_test_iterations) / 10 ** 6
+    print("[Client] Average memory consumption over", number_of_memory_test_iterations, "tests for connecting:",
+          "%.4f" % average_connection_memory_MB, "MB")
+    print("[Client] Average memory consumption over", number_of_memory_test_iterations, "tests for receiving file:",
+          "%.4f" % average_receive_memory_MB, "MB")
+
+
+def run_memory_tests_server():
+    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
+    total_peak_memory_connect = 0
+    total_peak_memory_receive_file = 0
+    # Measure connection memory
+    tracemalloc.start()
+    server.start_server()
+    _, peak = tracemalloc.get_traced_memory()
+    total_peak_memory_connect += peak
+
+    # Measure connection memory
+    tracemalloc.start()
+    server.send_file('./SSL/util/frankenstein_book.txt')
+    _, peak = tracemalloc.get_traced_memory()
+    total_peak_memory_receive_file += peak
+    average_connection_memory_MB = (total_peak_memory_connect / number_of_memory_test_iterations) / 10 ** 6
+    average_receive_memory_MB = (total_peak_memory_receive_file / number_of_memory_test_iterations) / 10 ** 6
+    print("[Server] Average memory consumption over", number_of_memory_test_iterations, "tests for connecting:",
+          "%.4f" % average_connection_memory_MB, "MB")
+    print("[Server] Average memory consumption over", number_of_memory_test_iterations, "tests for sending file:",
+          "%.4f" % average_receive_memory_MB, "MB")
+
+
+def run_cpu_utilization_tests():
+    '''
+        Run CPU tests to see how much CPU is utilized by Oauth2
+        Measuring both connection (using refresh tokens) and
+        downloading a file from google drive
+    '''
+    print("Running CPU Utilization test...")
+    cpu_percents = []
+    for i in range(number_of_cpu_test_iterations):
+
+        # Measure connect cpu %
+        worker_process = mp.Process(target=run_client_cpu_util)
+        worker_process.start()
+        p = psutil.Process(worker_process.pid)
+
+        # Log CPU usage every 10ms
+        while worker_process.is_alive():
+            try:
+                cpu_percents.append(p.cpu_percent())
+            except Exception as e:
+                print(str(e))
+            time.sleep(0.01)
+
+        worker_process.join()
+
+    print("Average CPU usage over", number_of_cpu_test_iterations, "tests between server and client connection:",
+          "%.4f" % (np.average(cpu_percents) / psutil.cpu_count()))
+    print("Max CPU usage over", number_of_cpu_test_iterations, "tests between server and client connection:",
+          "%.4f" % (max(cpu_percents) / psutil.cpu_count()))
+
+
+def run_client_cpu_util():
+    th = threading.Thread(target=run_server_cpu_util)
+    th.start()
+    sleep(0.05)
+
+    # Start the client
+    client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
+    client.connect()
+    client.receive_file()
+
+    th.join()
+
+
+def run_server_cpu_util():
+    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
+    server.start_server()
+    server.send_file('./SSL/util/frankenstein_book.txt')
 
 
 if __name__ == "__main__":
