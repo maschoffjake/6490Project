@@ -15,17 +15,19 @@ import multiprocessing as mp
 ENERGY_USED = {
     'client_connect_pkg': [],
     'client_receive_pkg': [],
-    'server_connect_pkg': [],
-    'server_send_pkg': [],
     'client_connect_dram': [],
-    'client_receive_dram': [],
-    'server_connect_dram': [],
-    'server_send_dram': []
+    'client_receive_dram': []
+}
+
+TIME = {
+    'client_connect_time': [],
+    'client_receive_time': []
 }
 
 number_of_power_test_iterations = 500
 number_of_memory_test_iterations = 1
 number_of_cpu_test_iterations = 20
+number_of_time_test_iterations = 500
 
 def main():
     # You must first authenticate the client with a signin
@@ -34,9 +36,9 @@ def main():
     # Run power tests, memory tests, and then CPU tests
     # run_power_tests(client=client)
     # run_memory_tests(client=client)
-    client.connect()    # Run a connect before to ensure creds is populated
-    run_cpu_utilization_tests(client=client)
-
+    # client.connect()    # Run a connect before to ensure creds is populated for cpu utilization tests
+    # run_cpu_utilization_tests(client=client)
+    run_time_tests(client)
 
 
 def run_power_tests(client):
@@ -164,18 +166,37 @@ def run_receive_file(client):
     """
     client.receive_file()
 
+def run_time_tests(client):
+    '''
+        Function used for timing the connect and receive file methods of OAuth2
+    '''
+    for i in range(number_of_time_test_iterations):
+        # Time how long it takes to connect
+        connect_start = time.time()
+        client.connect()
+        connect_end = time.time()
+
+        # Time how long it takes to receive a file
+        receive_start = time.time()
+        client.receive_file()
+        receive_end = time.time()
+        TIME['client_connect_time'] += [connect_end - connect_start]
+        TIME['client_receive_time'] += [receive_end - receive_start]
+    print_time_used()   
+
+def print_time_used():
+    print("Time")
+    print("Client Connect: ", np.average(TIME['client_connect_time']), 'S')
+    print("Client Receiving File: ", np.average(TIME['client_receive_time']), 'S')
+
 def print_energy_used():
     print("CPU Energy Uses")
     print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']), '\u03BCJ')
     print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']), '\u03BCJ')
     print()
     print("DRAM Energy Uses")
     print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']), '\u03BCJ')
     print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
 
 
 if __name__ == "__main__":
