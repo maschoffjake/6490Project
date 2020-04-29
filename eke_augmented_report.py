@@ -36,7 +36,7 @@ def main():
     port = 5002
     password = get_random_bytes(16)
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
-    repeat = 10
+    repeat = 50
 
     for device in devices_to_record:
         if device == pyRAPL.Device.PKG:
@@ -113,16 +113,22 @@ def main():
 
 def print_energy_used():
     print("CPU Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']) / 1000, 'mJ')
     print()
     print("DRAM Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']) / 1000, 'mJ')
+    print()
+    print("Time")
+    print("Client Connect: ", np.average(TIME['client_connect_time']), 'S')
+    print("Client Receiving File: ", np.average(TIME['client_receive_time']), 'S')
+    print("Server Connect: ", np.average(TIME['server_connect_time']), 'S')
+    print("Server Sending File: ", np.average(TIME['server_send_time']), 'S')
 
 
 def run_server(device, password):
