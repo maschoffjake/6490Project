@@ -35,6 +35,7 @@ class EKEDiffieClient(ProtocolClientInterface):
         self.secret_key = None
         self.socket = None
         self.data = None
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def connect(self):
         """
