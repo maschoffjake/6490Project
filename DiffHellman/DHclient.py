@@ -95,11 +95,10 @@ class DHClient(ProtocolClientInterface):
         message = b''
         #data = self.ssock.recv(message_size)
         while True:
-            data = conn.recv(4096)
+            data = conn.recv(message_size)
             if not data:
                 break
             message += data
-
 
         decrypted_message, verified = verifyContent(message, key)
 

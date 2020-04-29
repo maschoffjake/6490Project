@@ -33,7 +33,7 @@ TIME = {
     'server_send_time': []
 }
 
-number_of_memory_test_iterations = 10
+number_of_memory_test_iterations = 1
 number_of_cpu_test_iterations = 100
 
 SSL_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
@@ -41,7 +41,7 @@ SSL_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
 
 
 def main():
-    protocols = ['TLS', ssl.PROTOCOL_SSLv2]
+    protocols = [ssl.PROTOCOL_SSLv23, 'TLS']
     for protocol in protocols:
         global SSL_PROTOCOL_CLIENT
         global SSL_PROTOCOL_SERVER
@@ -51,15 +51,16 @@ def main():
         else:
             SSL_PROTOCOL_CLIENT = protocol
             SSL_PROTOCOL_SERVER = protocol
+        print(SSL_PROTOCOL_SERVER)
         # run_memory_tests()
         # run_cpu_utilization_tests()
         power_time()
+        print()
 
 
 def power_time():
-    print(SSL_PROTOCOL_SERVER)
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
-    repeat = 500
+    repeat = 100
     for device in devices_to_record:
         if device == pyRAPL.Device.PKG:
             print("Measuring PKG...")
@@ -128,16 +129,16 @@ def power_time():
 
 def print_energy_used():
     print("CPU Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_pkg']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_pkg']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_pkg']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_pkg']) / 1000, 'mJ')
     print()
     print("DRAM Energy Uses")
-    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']), '\u03BCJ')
-    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
-    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
-    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
+    print("Client Connect: ", np.average(ENERGY_USED['client_connect_dram']) / 1000, 'mJ')
+    print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']) / 1000, 'mJ')
+    print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']) / 1000, 'mJ')
+    print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']) / 1000, 'mJ')
     print()
     print("Time")
     print("Client Connect: ", np.average(TIME['client_connect_time']), 'S')

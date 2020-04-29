@@ -35,11 +35,11 @@ def main():
     client = Oauth2()
 
     # Run power tests, memory tests, and then CPU tests
-    # run_power_tests(client=client)
+    run_power_tests(client=client)
     # run_memory_tests(client=client)
     # client.connect()    # Run a connect before to ensure creds is populated for cpu utilization tests
     # run_cpu_utilization_tests(client=client)
-    run_time_tests(client)
+    # run_time_tests(client)
 
 
 def run_power_tests(client):
