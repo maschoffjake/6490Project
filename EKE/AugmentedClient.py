@@ -69,7 +69,7 @@ class EKEAugmentedClient(ProtocolClientInterface):
         m = hashlib.sha1()
         m.update(self.password)
         x = m.digest()
-        cipher = DES3.new(x[:16], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(x[:16], DES3.MODE_ECB)
         encrypted = cipher.encrypt(int_to_bytes(self.public_key, BUFFER_SIZE))
         #self.socket.sendall(encrypted)
 
@@ -95,7 +95,7 @@ class EKEAugmentedClient(ProtocolClientInterface):
         m = hashlib.sha1()
         m.update(self.password)
         x = m.digest()
-        cipher = DES3.new(x[:16], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(x[:16], DES3.MODE_ECB)
         encrypted = int_to_bytes(msg["Key"], BUFFER_SIZE)
         decrypted = bytes_to_int(cipher.decrypt(encrypted))
         if self.public_key is None:

@@ -82,7 +82,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
     def send_public_key(self):
         if self.public_key is None:
             self.create_public_key()
-        cipher = DES3.new(self.passwords["Alice"], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(self.passwords["Alice"], DES3.MODE_ECB)
         encrypted = cipher.encrypt(int_to_bytes(self.public_key, BUFFER_SIZE))
 
         msg = {
@@ -104,7 +104,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
         data = data.lstrip("0")
         msg = json.loads(data)
 
-        cipher = DES3.new(self.passwords[msg["Name"]], DES3.MODE_ECB, 'This is an IV')
+        cipher = DES3.new(self.passwords[msg["Name"]], DES3.MODE_ECB)
         encrypted = int_to_bytes(msg["Key"], BUFFER_SIZE)
         decrypted = bytes_to_int(cipher.decrypt(encrypted))
         if self.public_key is None:
