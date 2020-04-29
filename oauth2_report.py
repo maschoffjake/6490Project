@@ -111,7 +111,6 @@ def run_cpu_utilization_tests(client):
         Measuring both connection (using refresh tokens) and
         downloading a file from google drive
     '''
-    print(client.get_creds())
     cpu_percents_connect = []
     cpu_percents_receive_file = []
     for i in range(number_of_cpu_test_iterations):
