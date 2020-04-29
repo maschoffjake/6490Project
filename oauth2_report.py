@@ -132,7 +132,7 @@ def run_cpu_utilization_tests(client):
 
         worker_process.join()
 
-        # Measure connect cpu %
+        # Measure receive file cpu %
         worker_process = mp.Process(target=run_receive_file, args=(client,))
         worker_process.start()
         p = psutil.Process(worker_process.pid)
