@@ -40,7 +40,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
         self.encrypted_key = None
         self.secret_key = None
         self.connection = None
-
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     def start_server(self):
         """
@@ -50,6 +50,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
         """
         self.create_public_key()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((self.hostname, self.port))
         s.listen(5)
 
@@ -57,7 +58,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
         (conn, address) = s.accept()
         self.connection = conn
 
-        print('SERVER: Connection made with client')
+        logging.debug('SERVER: Connection made with client')
 
     def send_file(self, path_to_file, message_size=16*1024):
         """
@@ -67,7 +68,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
         :return:
         """
         logging.debug('SERVER: Beginning to send', path_to_file)
-        print("SERVER: sending file")
+        logging.debug("SERVER: sending file")
         # Going to transfer the file passed in as arg (account for \r\n w/ newline)
         with open(path_to_file, 'r+b') as f:
             data = f.read(message_size)
@@ -89,7 +90,7 @@ class EKEAugmentedServer(ProtocolServerInterface):
             "Key": bytes_to_int(encrypted)
         }
         json_msg = create_json(msg)
-        print("SERVER:", json_msg)
+        logging.debug("SERVER:", json_msg)
         self.connection.sendall(json_msg)
 
 
@@ -112,9 +113,9 @@ class EKEAugmentedServer(ProtocolServerInterface):
         self.diffie.generate_shared_secret(decrypted)    
         self.secret_key = self.diffie.shared_key
         if self.secret_key == None:
-            print("SERVER: secret key was not established")
+            logging.debug("SERVER: secret key was not established")
         else:
-            print("SERVER: secret key was established")
+            logging.debug("SERVER: secret key was established")
 
 
     def waiting_for_response(self):
