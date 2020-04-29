@@ -153,15 +153,15 @@ def run_cpu_utilization_tests(client):
 
 
 def run_connect(client):
-    '''
+    """
         Threaded function for recording the CPU usage for connecting for the client
-    '''
+    """
     client.connect()
 
 def run_receive_file(client):
-    '''
+    """
         Threaded function for recording the CPU usage for receiving a file from the client
-    '''
+    """
     client.receive_file()
 
 def print_energy_used():

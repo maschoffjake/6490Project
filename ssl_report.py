@@ -1,5 +1,7 @@
 import ssl
 import threading
+import time
+
 import pyRAPL
 import numpy as np
 
@@ -21,19 +23,31 @@ ENERGY_USED = {
     'server_send_dram': []
 }
 
+TIME = {
+    'client_connect_time': [],
+    'client_receive_time': [],
+    'server_connect_time': [],
+    'server_send_time': []
+}
+
 
 def main():
     # Port and hostname that the SSL server will be running on
     host = 'localhost'
     port = 5001
 
-    devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM]
+    devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
     repeat = 500
     for device in devices_to_record:
         if device == pyRAPL.Device.PKG:
             print("Measuring PKG...")
-        else:
+        elif device == pyRAPL.Device.DRAM:
             print("Measuring DRAM...")
+        elif device == "time":
+            print("Measuring Time...")
+        else:
+            print("Unknown device.")
+            return
         for i in range(repeat):
             th = threading.Thread(target=run_server, args=[device,])
             th.start()
@@ -41,24 +55,49 @@ def main():
 
             # Start the client
             client = CertClient(host, port, ssl.PROTOCOL_TLS_CLIENT)
-            pyRAPL.setup(devices=[device])
-            meter_client_connect = pyRAPL.Measurement('client_connect')
-            meter_client_connect.begin()
+
+            meter_client_connect = 0
+            connect_start = 0
+            connect_end = 0
+            if device != "time":
+                pyRAPL.setup(devices=[device])
+                meter_client_connect = pyRAPL.Measurement('client_connect')
+                meter_client_connect.begin()
+            else:
+                connect_start = time.time()
+
             client.connect()
-            meter_client_connect.end()
+
+            if device != "time":
+                meter_client_connect.end()
+            else:
+                connect_end = time.time()
 
             # Now transfer a file across this connection
             meter_client_receive = pyRAPL.Measurement('client_receive')
-            meter_client_receive.begin()
+            receive_start = 0
+            receive_end = 0
+            if device != "time":
+                meter_client_receive.begin()
+            else:
+                receive_start = time.time()
+
             client.receive_file()
-            meter_client_receive.end()
+
+            if device != "time":
+                meter_client_receive.end()
+            else:
+                receive_end = time.time()
 
             if device == pyRAPL.Device.PKG:
                 ENERGY_USED['client_connect_pkg'] += meter_client_connect.result.pkg
                 ENERGY_USED['client_receive_pkg'] += meter_client_receive.result.pkg
-            else:
+            elif device == pyRAPL.Device.DRAM:
                 ENERGY_USED['client_connect_dram'] += meter_client_connect.result.dram
                 ENERGY_USED['client_receive_dram'] += meter_client_receive.result.dram
+            elif device == "time":
+                TIME['client_connect_time'] += [connect_end - connect_start]
+                TIME['client_receive_time'] += [receive_end - receive_start]
 
             th.join()
         print("Done.\n")
@@ -77,29 +116,61 @@ def print_energy_used():
     print("Client Receiving File: ", np.average(ENERGY_USED['client_receive_dram']), '\u03BCJ')
     print("Server Connect: ", np.average(ENERGY_USED['server_connect_dram']), '\u03BCJ')
     print("Server Sending File: ", np.average(ENERGY_USED['server_send_dram']), '\u03BCJ')
+    print()
+    print("Time")
+    print("Client Connect: ", np.average(TIME['client_connect_time']), 'S')
+    print("Client Receiving File: ", np.average(TIME['client_receive_time']), 'S')
+    print("Server Connect: ", np.average(TIME['server_connect_time']), 'S')
+    print("Server Sending File: ", np.average(TIME['server_send_time']), 'S')
 
 
 def run_server(device):
     # Start the server
     server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
-    pyRAPL.setup(devices=[device])
-    meter_server_connect = pyRAPL.Measurement('server_connect')
-    meter_server_connect.begin()
+
+    meter_server_connect = 0
+    connect_start = 0
+    connect_end = 0
+    if device != "time":
+        pyRAPL.setup(devices=[device])
+        meter_server_connect = pyRAPL.Measurement('server_connect')
+        meter_server_connect.begin()
+    else:
+        connect_start = time.time()
+
     server.start_server()
-    meter_server_connect.end()
+
+    if device != "time":
+        meter_server_connect.end()
+    else:
+        connect_end = time.time()
 
     # Send file
     meter_server_send = pyRAPL.Measurement('server_send')
-    meter_server_send.begin()
+    send_start = 0
+    send_end = 0
+    if device != "time":
+        meter_server_send.begin()
+    else:
+        send_start = time.time()
+
     server.send_file('./SSL/util/frankenstein_book.txt')
-    meter_server_send.end()
+
+    if device != "time":
+        meter_server_send.end()
+    else:
+        send_end = time.time()
 
     if device == pyRAPL.Device.PKG:
         ENERGY_USED['server_connect_pkg'] += meter_server_connect.result.pkg
         ENERGY_USED['server_send_pkg'] += meter_server_send.result.pkg
-    else:
+    elif device == pyRAPL.Device.DRAM:
         ENERGY_USED['server_connect_dram'] += meter_server_connect.result.dram
         ENERGY_USED['server_send_dram'] += meter_server_send.result.dram
+    elif device == "time":
+        TIME['server_connect_time'] += [connect_end - connect_start]
+        TIME['server_send_time'] += [send_end - send_start]
+    return
 
 
 if __name__ == "__main__":
