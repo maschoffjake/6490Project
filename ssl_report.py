@@ -36,14 +36,28 @@ TIME = {
 number_of_memory_test_iterations = 10
 number_of_cpu_test_iterations = 100
 
+SSL_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
+SSL_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
+
 
 def main():
-    run_memory_tests()
-    # run_cpu_utilization_tests()
-    # power_time()
+    protocols = ['TLS', ssl.PROTOCOL_SSLv2]
+    for protocol in protocols:
+        global SSL_PROTOCOL_CLIENT
+        global SSL_PROTOCOL_SERVER
+        if protocol == "TLS":
+            SSL_PROTOCOL_CLIENT = ssl.PROTOCOL_TLS_CLIENT
+            SSL_PROTOCOL_SERVER = ssl.PROTOCOL_TLS_SERVER
+        else:
+            SSL_PROTOCOL_CLIENT = protocol
+            SSL_PROTOCOL_SERVER = protocol
+        # run_memory_tests()
+        # run_cpu_utilization_tests()
+        power_time()
 
 
 def power_time():
+    print(SSL_PROTOCOL_SERVER)
     devices_to_record = [pyRAPL.Device.PKG, pyRAPL.Device.DRAM, "time"]
     repeat = 500
     for device in devices_to_record:
@@ -62,7 +76,7 @@ def power_time():
             sleep(0.05)
 
             # Start the client
-            client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
+            client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
 
             meter_client_connect = 0
             connect_start = 0
@@ -104,7 +118,7 @@ def power_time():
                 ENERGY_USED['client_connect_dram'] += meter_client_connect.result.dram
                 ENERGY_USED['client_receive_dram'] += meter_client_receive.result.dram
             elif device == "time":
-                TIME['client_connect_time'] += [connect_end - connecnt_start]
+                TIME['client_connect_time'] += [connect_end - connect_start]
                 TIME['client_receive_time'] += [receive_end - receive_start]
 
             th.join()
@@ -134,7 +148,7 @@ def print_energy_used():
 
 def run_server(device):
     # Start the server
-    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
+    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
 
     meter_server_connect = 0
     connect_start = 0
@@ -188,7 +202,7 @@ def run_memory_tests():
         downloading a file from google drive
     '''
     print("Running memory test...")
-    client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
+    client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
     total_peak_memory_connect = 0
     total_peak_memory_receive_file = 0
     for i in range(number_of_memory_test_iterations):
@@ -219,7 +233,7 @@ def run_memory_tests():
 
 
 def run_memory_tests_server():
-    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
+    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
     total_peak_memory_connect = 0
     total_peak_memory_receive_file = 0
     # Measure connection memory
@@ -278,7 +292,7 @@ def run_client_cpu_util():
     sleep(0.05)
 
     # Start the client
-    client = CertClient(HOST, PORT, ssl.PROTOCOL_TLS_CLIENT)
+    client = CertClient(HOST, PORT, SSL_PROTOCOL_CLIENT)
     client.connect()
     client.receive_file()
 
@@ -286,7 +300,7 @@ def run_client_cpu_util():
 
 
 def run_server_cpu_util():
-    server = CertServer(HOST, PORT, ssl.PROTOCOL_TLS_SERVER)
+    server = CertServer(HOST, PORT, SSL_PROTOCOL_SERVER)
     server.start_server()
     server.send_file('./SSL/util/frankenstein_book.txt')
 
